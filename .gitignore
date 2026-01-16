@@ -1,0 +1,73 @@
+datasets/
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+
+# Model files (trained models - too large for GitHub)
+*.h5
+*.keras
+*.pth
+*.pkl
+*.tflite
+models/best_model_*.pth
+models/*/best_model_*.pth
+
+# Training outputs
+logs/
+*/logs/
+*/training/logs/
+*.log
+
+# Graphs and visualizations (generated outputs)
+*/graphs/
+*/Pneumonia_plots/
+*/plots/
+*.png
+*.jpg
+*.jpeg
+!templates/*.jpg
+!templates/*.png
+!static/*.jpg
+!static/*.png
+
+# Data directories
+data/
+datasets/
+Seg-CQ500/
+
+# Model-specific dataset folders
+brain_tumor/cleaned_data/
+Lung/dataset/
+Fetal_Ultrasound/dataset/
+
+# Uploads
+static/uploads/*
+!static/uploads/.gitkeep
+
+# OS files
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# IDE
+.vscode/
+.idea/
+*.iml
+
+# Logs
+*.log
+results/
+
+# Environment
+.env
+.env.local
