@@ -1,0 +1,7 @@
+{
+  "task": "fetal_ultrasound_head_segmentation",
+  "classes": {
+    "0": "background",
+    "1": "fetal_head"
+  }
+}

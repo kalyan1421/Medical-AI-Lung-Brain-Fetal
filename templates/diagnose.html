@@ -1,701 +1,276 @@
-{% extends "base.html" %}
+<!DOCTYPE html>
+<html lang="en">
 
-{% block title %}{{ disease_name }} Analysis - MedDiagnose AI{% endblock %}
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Diagnose {{ disease_name }} - Medical AI</title>
+    <!-- Modern Font: Outfit -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
 
-{% block head %}
-<style>
-    /* Page Header */
-    .page-header {
-        display: flex;
-        align-items: center;
-        gap: var(--space-lg);
-        margin-bottom: var(--space-2xl);
-        padding-bottom: var(--space-lg);
-        border-bottom: 1px solid var(--neutral-200);
-    }
-    
-    .back-link {
-        display: inline-flex;
-        align-items: center;
-        gap: var(--space-sm);
-        color: var(--neutral-600);
-        text-decoration: none;
-        font-weight: 500;
-        transition: color var(--transition-fast);
-    }
-    
-    .back-link:hover {
-        color: var(--primary-600);
-    }
-    
-    .page-icon {
-        width: 72px;
-        height: 72px;
-        border-radius: var(--radius-lg);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 2.5rem;
-        box-shadow: var(--shadow-md);
-    }
-    
-    /* Color themes for each disease type */
-    .page-icon.pneumonia {
-        background: linear-gradient(135deg, #1e3a5f 0%, #3d5a80 100%);
-    }
-    
-    .page-icon.fetal_ultrasound {
-        background: linear-gradient(135deg, #6b2c5a 0%, #a55c8c 100%);
-    }
-    
-    .page-icon.brain_tumor {
-        background: linear-gradient(135deg, #2d1b4e 0%, #5e3d7c 100%);
-    }
-    
-    .page-title-group h1 {
-        font-size: 2rem;
-        margin-bottom: var(--space-xs);
-    }
-    
-    .page-subtitle {
-        color: var(--neutral-600);
-        font-size: 1rem;
-    }
-    
-    /* Main Content Layout */
-    .diagnosis-layout {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: var(--space-2xl);
-    }
-    
-    @media (max-width: 1024px) {
-        .diagnosis-layout {
-            grid-template-columns: 1fr;
-        }
-    }
-    
-    /* Upload Section */
-    .upload-section {
-        background: white;
-        border-radius: var(--radius-xl);
-        padding: var(--space-2xl);
-        border: 1px solid var(--neutral-200);
-        box-shadow: var(--shadow-md);
-    }
-    
-    .section-title {
-        font-family: var(--font-display);
-        font-size: 1.25rem;
-        font-weight: 600;
-        color: var(--neutral-900);
-        margin-bottom: var(--space-lg);
-        display: flex;
-        align-items: center;
-        gap: var(--space-sm);
-    }
-    
-    .file-upload-area {
-        position: relative;
-        border: 2px dashed var(--neutral-300);
-        border-radius: var(--radius-lg);
-        padding: var(--space-3xl) var(--space-xl);
-        text-align: center;
-        background: var(--neutral-50);
-        transition: all var(--transition-normal);
-        cursor: pointer;
-        margin-bottom: var(--space-lg);
-    }
-    
-    .file-upload-area:hover,
-    .file-upload-area.dragover {
-        border-color: var(--primary-500);
-        background: var(--primary-50);
-    }
-    
-    .file-upload-area input[type="file"] {
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        opacity: 0;
-        cursor: pointer;
-    }
-    
-    .upload-icon {
-        font-size: 4rem;
-        margin-bottom: var(--space-md);
-        display: block;
-    }
-    
-    .upload-text {
-        color: var(--neutral-600);
-        margin-bottom: var(--space-sm);
-    }
-    
-    .upload-text strong {
-        color: var(--primary-600);
-    }
-    
-    .upload-formats {
-        font-size: 0.8125rem;
-        color: var(--neutral-500);
-    }
-    
-    .file-name-display {
-        background: var(--primary-100);
-        color: var(--primary-700);
-        padding: var(--space-md);
-        border-radius: var(--radius-md);
-        margin-bottom: var(--space-lg);
-        display: none;
-        align-items: center;
-        gap: var(--space-sm);
-        font-weight: 500;
-    }
-    
-    .file-name-display.visible {
-        display: flex;
-    }
-    
-    .analyze-btn {
-        width: 100%;
-        padding: var(--space-lg);
-        font-size: 1.125rem;
-    }
-    
-    /* Preview Section */
-    .preview-section {
-        display: flex;
-        flex-direction: column;
-        gap: var(--space-lg);
-    }
-    
-    .image-preview-card {
-        background: white;
-        border-radius: var(--radius-xl);
-        padding: var(--space-xl);
-        border: 1px solid var(--neutral-200);
-        box-shadow: var(--shadow-md);
-        text-align: center;
-    }
-    
-    .preview-placeholder {
-        background: var(--neutral-100);
-        border-radius: var(--radius-lg);
-        padding: var(--space-3xl);
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        min-height: 300px;
-    }
-    
-    .preview-placeholder-icon {
-        font-size: 4rem;
-        opacity: 0.3;
-        margin-bottom: var(--space-md);
-    }
-    
-    .preview-placeholder-text {
-        color: var(--neutral-400);
-        font-size: 0.9375rem;
-    }
-    
-    .uploaded-image {
-        max-width: 100%;
-        max-height: 400px;
-        border-radius: var(--radius-lg);
-        box-shadow: var(--shadow-md);
-        object-fit: contain;
-    }
-    
-    /* Results Card */
-    .results-card {
-        background: white;
-        border-radius: var(--radius-xl);
-        padding: var(--space-xl);
-        border: 1px solid var(--neutral-200);
-        box-shadow: var(--shadow-md);
-        animation: fadeInUp 0.5s ease;
-    }
-    
-    .result-header {
-        display: flex;
-        align-items: center;
-        gap: var(--space-md);
-        margin-bottom: var(--space-lg);
-        padding-bottom: var(--space-lg);
-        border-bottom: 1px solid var(--neutral-200);
-    }
-    
-    .result-status-icon {
-        width: 56px;
-        height: 56px;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 1.75rem;
-    }
-    
-    .result-status-icon.normal {
-        background: var(--success-100);
-    }
-    
-    .result-status-icon.critical {
-        background: #fef2f2;
-    }
-    
-    .result-title {
-        font-family: var(--font-display);
-        font-size: 1.5rem;
-        font-weight: 600;
-    }
-    
-    .result-title.normal {
-        color: #166534;
-    }
-    
-    .result-title.critical {
-        color: #991b1b;
-    }
-    
-    .result-subtitle {
-        color: var(--neutral-600);
-        font-size: 0.875rem;
-    }
-    
-    /* Confidence Meter */
-    .confidence-section {
-        margin-bottom: var(--space-lg);
-    }
-    
-    .confidence-label {
-        display: flex;
-        justify-content: space-between;
-        margin-bottom: var(--space-sm);
-        font-weight: 500;
-    }
-    
-    .confidence-value {
-        font-family: var(--font-display);
-        font-size: 1.5rem;
-        font-weight: 700;
-        color: var(--primary-700);
-    }
-    
-    .confidence-bar-bg {
-        height: 12px;
-        background: var(--neutral-200);
-        border-radius: 6px;
-        overflow: hidden;
-    }
-    
-    .confidence-bar {
-        height: 100%;
-        border-radius: 6px;
-        background: linear-gradient(90deg, var(--primary-500) 0%, var(--primary-600) 100%);
-        transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
-    }
-    
-    /* All Predictions List */
-    .predictions-list {
-        margin-top: var(--space-lg);
-    }
-    
-    .predictions-title {
-        font-weight: 600;
-        color: var(--neutral-800);
-        margin-bottom: var(--space-md);
-    }
-    
-    .prediction-item {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: var(--space-md);
-        background: var(--neutral-50);
-        border-radius: var(--radius-md);
-        margin-bottom: var(--space-sm);
-    }
-    
-    .prediction-item.highlighted {
-        background: var(--primary-50);
-        border: 1px solid var(--primary-200);
-    }
-    
-    .prediction-label {
-        font-weight: 500;
-        color: var(--neutral-800);
-    }
-    
-    .prediction-confidence {
-        font-family: var(--font-display);
-        font-weight: 600;
-        color: var(--primary-700);
-    }
-    
-    .prediction-bar {
-        width: 100px;
-        height: 6px;
-        background: var(--neutral-200);
-        border-radius: 3px;
-        overflow: hidden;
-        margin-left: var(--space-md);
-    }
-    
-    .prediction-bar-fill {
-        height: 100%;
-        background: var(--primary-500);
-        border-radius: 3px;
-    }
-    
-    /* Error Alert */
-    .error-alert {
-        background: #fef2f2;
-        border: 1px solid #fecaca;
-        border-radius: var(--radius-md);
-        padding: var(--space-lg);
-        margin-bottom: var(--space-lg);
-        display: flex;
-        align-items: flex-start;
-        gap: var(--space-md);
-    }
-    
-    .error-icon {
-        font-size: 1.5rem;
-    }
-    
-    .error-content h4 {
-        color: #991b1b;
-        font-weight: 600;
-        margin-bottom: var(--space-xs);
-    }
-    
-    .error-content p {
-        color: #b91c1c;
-        font-size: 0.9375rem;
-    }
-    
-    /* Info Panel */
-    .info-panel {
-        background: var(--primary-50);
-        border: 1px solid var(--primary-200);
-        border-radius: var(--radius-lg);
-        padding: var(--space-lg);
-        margin-top: var(--space-lg);
-    }
-    
-    .info-panel-title {
-        font-weight: 600;
-        color: var(--primary-800);
-        margin-bottom: var(--space-sm);
-        display: flex;
-        align-items: center;
-        gap: var(--space-sm);
-    }
-    
-    .info-panel p {
-        color: var(--primary-700);
-        font-size: 0.9375rem;
-        line-height: 1.6;
-    }
-    
-    /* Disclaimer */
-    .disclaimer {
-        background: var(--warning-100);
-        border: 1px solid var(--warning-500);
-        border-radius: var(--radius-md);
-        padding: var(--space-md);
-        margin-top: var(--space-lg);
-        font-size: 0.8125rem;
-        color: #92400e;
-    }
-    
-    /* Animations */
-    @keyframes fadeInUp {
-        from {
-            opacity: 0;
-            transform: translateY(20px);
-        }
-        to {
-            opacity: 1;
-            transform: translateY(0);
-        }
-    }
-    
-    @keyframes pulse-glow {
-        0%, 100% {
-            box-shadow: 0 0 0 0 rgba(28, 181, 181, 0.4);
-        }
-        50% {
-            box-shadow: 0 0 0 10px rgba(28, 181, 181, 0);
-        }
-    }
-    
-    .analyzing .analyze-btn {
-        animation: pulse-glow 1.5s infinite;
-    }
-</style>
-{% endblock %}
-
-{% block content %}
-<!-- Page Header -->
-<div class="page-header">
-    <a href="{{ url_for('index') }}" class="back-link">
-        ← Back to Home
-    </a>
-</div>
-
-<div style="display: flex; align-items: center; gap: var(--space-lg); margin-bottom: var(--space-2xl);">
-    <div class="page-icon {{ disease_type }}">
-        {% if disease_type == 'pneumonia' %}🫁
-        {% elif disease_type == 'fetal_ultrasound' %}👶
-        {% elif disease_type == 'brain_tumor' %}🧠
-        {% endif %}
-    </div>
-    <div class="page-title-group">
-        <h1>{{ disease_name }} Analysis</h1>
-        <p class="page-subtitle">{{ config.description }}</p>
-    </div>
-</div>
-
-<div class="diagnosis-layout">
-    <!-- Upload Section -->
-    <div class="upload-section">
-        <h2 class="section-title">
-            📤 Upload Medical Image
-        </h2>
-        
-        {% if error %}
-        <div class="error-alert">
-            <span class="error-icon">⚠️</span>
-            <div class="error-content">
-                <h4>Analysis Error</h4>
-                <p>{{ error }}</p>
+<body>
+    <div class="container">
+        <!-- Main Header -->
+        <header class="app-header">
+            <div class="header-nav">
+                <div class="logo-header">
+                    <a href="{{ url_for('index') }}">
+                        <h1>MedAI</h1>
+                        <span>Diagnostic System</span>
+                    </a>
+                </div>
+                <a href="{{ url_for('index') }}" class="back-link"
+                    style="color: var(--text-muted); text-decoration: none; font-weight: 500;">← Back to Hub</a>
             </div>
-        </div>
-        {% endif %}
-        
-        <form method="POST" enctype="multipart/form-data" id="uploadForm">
-            <div class="file-upload-area" id="dropZone">
-                <input type="file" name="file" id="fileInput" accept="image/*" required>
-                <span class="upload-icon">📁</span>
-                <p class="upload-text">
-                    <strong>Click to upload</strong> or drag and drop
-                </p>
-                <p class="upload-formats">
-                    {% if disease_type == 'pneumonia' %}
-                    Chest X-ray images (JPG, PNG)
-                    {% elif disease_type == 'fetal_ultrasound' %}
-                    Fetal ultrasound images (JPG, PNG)
-                    {% elif disease_type == 'brain_tumor' %}
-                    Brain MRI scans (JPG, PNG)
+        </header>
+
+        <main>
+            <div class="diagnosis-header">
+                <h2>{{ disease_name }}</h2>
+                <p>{{ config.description }}</p>
+            </div>
+
+            <div class="workspace-grid">
+                <!-- Upload Panel -->
+                <div class="upload-panel glass-panel">
+                    <form method="POST" enctype="multipart/form-data" id="upload-form">
+                        <label class="upload-zone" id="drop-zone">
+                            <input type="file" name="file" id="file-input" accept="image/*" required>
+                            <div class="upload-icon">📸</div>
+                            <div class="upload-prompt" id="upload-prompt-text">Click or Drag Image Here</div>
+                            <div class="upload-subtext">Supports PNG, JPG, JPEG, GIF up to 16MB</div>
+                        </label>
+                        <button type="submit" class="submit-btn" id="submit-btn">
+                            <span class="btn-text">Analyze Upload</span>
+                            <div class="btn-loader"></div>
+                        </button>
+                    </form>
+
+                    {% if error %}
+                    <div class="error-box" style="margin-top: 20px;">
+                        ⚠️ {{ error }}
+                    </div>
                     {% endif %}
-                </p>
-            </div>
-            
-            <div class="file-name-display" id="fileNameDisplay">
-                <span>📎</span>
-                <span id="fileName"></span>
-            </div>
-            
-            <button type="submit" class="btn btn-primary analyze-btn">
-                🔬 Analyze Image
-            </button>
-        </form>
-        
-        <div class="info-panel">
-            <div class="info-panel-title">
-                ℹ️ Guidelines for Best Results
-            </div>
-            <p>
-                {% if disease_type == 'pneumonia' %}
-                Upload clear frontal chest X-ray images. Ensure the image shows the full lung area 
-                without cropping. PA (posterior-anterior) views work best.
-                {% elif disease_type == 'fetal_ultrasound' %}
-                Upload standard fetal ultrasound scan images showing fetal head. Grayscale 2D images 
-                with good contrast provide the most accurate segmentation results.
-                {% elif disease_type == 'brain_tumor' %}
-                Upload axial brain MRI scans. T1 or T2 weighted images work best. Ensure the scan 
-                shows clear brain tissue contrast.
-                {% endif %}
-            </p>
-        </div>
-    </div>
-    
-    <!-- Preview & Results Section -->
-    <div class="preview-section">
-        <!-- Image Preview -->
-        <div class="image-preview-card">
-            <h2 class="section-title">🖼️ Image Preview</h2>
-            
-            {% if image_filename %}
-            <img src="{{ url_for('static', filename='uploads/' + image_filename) }}" 
-                 alt="Uploaded medical image" class="uploaded-image">
-            {% else %}
-            <div class="preview-placeholder">
-                <span class="preview-placeholder-icon">🏥</span>
-                <p class="preview-placeholder-text">Upload an image to see preview</p>
-            </div>
-            {% endif %}
-        </div>
-        
-        <!-- Results -->
-        {% if result %}
-        <div class="results-card">
-            <div class="result-header">
-                <div class="result-status-icon {{ 'normal' if not result.is_critical else 'critical' }}">
-                    {% if result.is_critical %}⚠️{% else %}✅{% endif %}
                 </div>
-                <div>
-                    <h3 class="result-title {{ 'normal' if not result.is_critical else 'critical' }}">
-                        {{ result.label }}
-                    </h3>
-                    <p class="result-subtitle">
-                        {% if result.model_type == 'segmentation' %}Segmentation Result{% else %}Primary Diagnosis Result{% endif %}
-                    </p>
-                </div>
-            </div>
-            
-            {% if result.model_type == 'segmentation' %}
-                <!-- Segmentation Results -->
-                <div class="confidence-section">
-                    <div class="confidence-label">
-                        <span>Fetal Head Coverage</span>
-                        <span class="confidence-value">{{ "%.2f"|format(result.coverage_percent) }}%</span>
+
+                <!-- Results Panel -->
+                <div class="results-panel glass-panel">
+                    {% if not result %}
+                    <!-- Empty State -->
+                    <div class="empty-state">
+                        <div class="empty-icon">📊</div>
+                        <h3>Awaiting Analysis</h3>
+                        <p>Upload a medical image to view diagnostic results here.</p>
                     </div>
-                    <div class="confidence-bar-bg">
-                        <div class="confidence-bar" style="width: {{ result.confidence }}%"></div>
-                    </div>
-                </div>
-                
-                <!-- Segmentation Visualization -->
-                <div style="margin-top: var(--space-lg);">
-                    <h4 class="predictions-title">Segmentation Overlay</h4>
-                    <img src="{{ url_for('static', filename='results/' + result.segmentation_overlay) }}" 
-                         alt="Segmentation overlay" 
-                         style="width: 100%; border-radius: var(--radius-md); margin-top: var(--space-md);">
-                    
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-md); margin-top: var(--space-md);">
-                        <div>
-                            <p style="font-size: 0.875rem; color: var(--neutral-600); margin-bottom: var(--space-xs);">Original Image</p>
-                            <img src="{{ url_for('static', filename='uploads/' + image_filename) }}" 
-                                 alt="Original" 
-                                 style="width: 100%; border-radius: var(--radius-sm);">
-                        </div>
-                        <div>
-                            <p style="font-size: 0.875rem; color: var(--neutral-600); margin-bottom: var(--space-xs);">Detected Mask</p>
-                            <img src="{{ url_for('static', filename='results/' + result.segmentation_mask) }}" 
-                                 alt="Mask" 
-                                 style="width: 100%; border-radius: var(--radius-sm);">
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Segmentation Metrics -->
-                <div class="predictions-list">
-                    <h4 class="predictions-title">Segmentation Metrics</h4>
-                    <div class="prediction-item">
-                        <span class="prediction-label">Positive Pixels</span>
-                        <span class="prediction-confidence">{{ result.metrics.positive_pixels | int }}</span>
-                    </div>
-                    <div class="prediction-item">
-                        <span class="prediction-label">Total Pixels</span>
-                        <span class="prediction-confidence">{{ result.metrics.total_pixels | int }}</span>
-                    </div>
-                    <div class="prediction-item">
-                        <span class="prediction-label">Mean Confidence</span>
-                        <span class="prediction-confidence">{{ "%.3f"|format(result.metrics.mean_confidence) }}</span>
-                    </div>
-                </div>
-            {% else %}
-                <!-- Classification Results -->
-                <div class="confidence-section">
-                    <div class="confidence-label">
-                        <span>Confidence Score</span>
-                        <span class="confidence-value">{{ "%.1f"|format(result.confidence) }}%</span>
-                    </div>
-                    <div class="confidence-bar-bg">
-                        <div class="confidence-bar" style="width: {{ result.confidence }}%"></div>
-                    </div>
-                </div>
-                
-                <div class="predictions-list">
-                    <h4 class="predictions-title">All Classifications</h4>
-                    {% for pred in result.all_predictions %}
-                    <div class="prediction-item {{ 'highlighted' if pred.label == result.label else '' }}">
-                        <span class="prediction-label">{{ pred.label }}</span>
-                        <div style="display: flex; align-items: center;">
-                            <span class="prediction-confidence">{{ "%.1f"|format(pred.confidence) }}%</span>
-                            <div class="prediction-bar">
-                                <div class="prediction-bar-fill" style="width: {{ pred.confidence }}%"></div>
+                    {% else %}
+                    <!-- Populated Results -->
+                    <div class="result-view">
+                        <div class="result-header">
+                            <h3>Diagnostic Report</h3>
+                            <div class="confidence-score">
+                                <div class="confidence-perc">{{ "%.1f"|format(result.confidence) }}%</div>
+                                <div class="confidence-label">Confidence Score</div>
                             </div>
                         </div>
+
+                        <!-- Prediction Alert -->
+                        <div
+                            class="prediction-alert {% if result.is_critical %}is-critical{% else %}is-normal{% endif %}">
+                            {% if result.is_critical %}
+                            <span>⚠️</span>
+                            {% else %}
+                            <span>✅</span>
+                            {% endif %}
+                            <span>Primary Finding: {{ result.label }}</span>
+                        </div>
+
+                        <!-- Image Display -->
+                        <div class="images-display">
+                            {% if image_filename %}
+                            <div class="image-box">
+                                <img src="{{ url_for('static', filename='uploads/' + image_filename) }}"
+                                    alt="Original Upload">
+                                <div class="image-label">Original Scan</div>
+                            </div>
+                            {% endif %}
+                            {% if result.segmentation_overlay %}
+                            <div class="image-box" style="border: 2px solid #10b981;">
+                                <img src="{{ url_for('static', filename='results/' + result.segmentation_overlay) }}"
+                                    alt="Segmentation Overlay">
+                                <div class="image-label" style="background: var(--success-gradient);">AI Detection Mask
+                                </div>
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Classification Breakdown -->
+                        {% if result.model_type == 'classification' %}
+                        <div class="breakdown-section">
+                            <h4>Class Probability Breakdown</h4>
+                            <div class="breakdown-list">
+                                {% for pred in result.all_predictions %}
+                                <div class="breakdown-row">
+                                    <div class="bd-label">{{ pred.label }}</div>
+                                    <div class="bd-bar">
+                                        {% set bar_bg = "var(--text-light)" %}
+                                        {% if loop.index0 == 0 %}
+                                        {% if result.is_critical %}
+                                        {% set bar_bg = "var(--accent-gradient)" %}
+                                        {% else %}
+                                        {% set bar_bg = "var(--success-gradient)" %}
+                                        {% endif %}
+                                        {% endif %}
+                                        <div class="bd-fill"
+                                            style="width: {{ pred.confidence }}%; background: {{ bar_bg|safe }};"></div>
+                                    </div>
+                                    <div class="bd-val">{{ "%.1f"|format(pred.confidence) }}%</div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        {% endif %}
                     </div>
-                    {% endfor %}
+                    {% endif %}
                 </div>
-            {% endif %}
-            
-            <div class="disclaimer">
-                ⚠️ <strong>Important:</strong> This AI analysis is for informational purposes only and should not 
-                replace professional medical advice. Please consult a qualified healthcare provider for proper 
-                diagnosis and treatment.
             </div>
-        </div>
-        {% endif %}
+
+            <!-- How It Works & Testing Guide Section -->
+            <div class="info-section">
+                <div class="info-header">
+                    <h3>How It Works & Testing Guide</h3>
+                </div>
+
+                <div class="info-grid">
+                    <!-- Architecture / Engine Card -->
+                    <div class="info-card">
+                        <h4>⚙️ AI Architecture</h4>
+                        {% if disease_type == 'pneumonia' %}
+                        <p>This model utilizes an <strong>EfficientNetB3</strong> Convolutional Neural Network (CNN),
+                            pre-trained on ImageNet and fine-tuned on a dataset of over 5,800 pediatric chest X-rays. It
+                            employs a custom classification head to distinguish between normal lungs and those showing
+                            signs of viral or bacterial pneumonia.</p>
+                        <div class="tech-badge-container">
+                            <span class="tech-badge">EfficientNetB3</span>
+                            <span class="tech-badge">Binary Classification</span>
+                            <span class="tech-badge">TensorFlow</span>
+                        </div>
+                        {% elif disease_type == 'brain_tumor' %}
+                        <p>This prediction engine runs on an <strong>EfficientNetV2S</strong> backbone featuring a novel
+                            Dual Pooling Strategy. Trained on high-quality MRI scans across 4 distinct classes, it
+                            extracts multiple feature representations to accurately classify brain tumors with extremely
+                            high precision.</p>
+                        <div class="tech-badge-container">
+                            <span class="tech-badge">EfficientNetV2S</span>
+                            <span class="tech-badge">Dual Pooling</span>
+                            <span class="tech-badge">4-Class Output</span>
+                        </div>
+                        {% elif disease_type == 'fetal_ultrasound' %}
+                        <p>Powered by a <strong>U-Net</strong> architecture tailored specifically for semantic
+                            segmentation in medical imaging. The encoder-decoder network uses skip connections to
+                            preserve fine-grained spatial information, allowing it to predict a pixel-perfect binary
+                            mask outlining the fetal head contour.</p>
+                        <div class="tech-badge-container">
+                            <span class="tech-badge">U-Net Architecture</span>
+                            <span class="tech-badge">Semantic Segmentation</span>
+                            <span class="tech-badge">Image Masking</span>
+                        </div>
+                        {% else %}
+                        <p>Our ensemble of specialized Deep Learning models analyze patient data to assist clinicians in
+                            diagnostics.</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- Step-by-Step Test Guide -->
+                    <div class="info-card">
+                        <h4>🧪 Testing Guide</h4>
+                        {% if disease_type == 'pneumonia' %}
+                        <ol class="step-list">
+                            <li><span class="step-number">1</span><strong>Ensure Image Format:</strong> Download a
+                                sample chest X-ray image (.jpeg, .png).</li>
+                            <li><span class="step-number">2</span><strong>Upload:</strong> Click the upload zone above
+                                or drag and drop your X-ray file.</li>
+                            <li><span class="step-number">3</span><strong>Analyze:</strong> Click the "Analyze Upload"
+                                button and wait for processing.</li>
+                            <li><span class="step-number">4</span><strong>Review:</strong> Check the resulting
+                                Confidence Score and Primary Finding (Normal vs Pneumonia).</li>
+                        </ol>
+                        {% elif disease_type == 'brain_tumor' %}
+                        <ol class="step-list">
+                            <li><span class="step-number">1</span><strong>Locate Scan:</strong> Prepare a single-slice
+                                Brain MRI scan (T1, T2, or FLAIR).</li>
+                            <li><span class="step-number">2</span><strong>Upload:</strong> Select or drop your image
+                                into the drop zone area.</li>
+                            <li><span class="step-number">3</span><strong>Submit:</strong> Run the model by hitting
+                                "Analyze Upload".</li>
+                            <li><span class="step-number">4</span><strong>Inspect Results:</strong> Review the primary
+                                prediction and the full probability breakdown across Glioma, Meningioma, Pituitary, and
+                                No Tumor classes.</li>
+                        </ol>
+                        {% elif disease_type == 'fetal_ultrasound' %}
+                        <ol class="step-list">
+                            <li><span class="step-number">1</span><strong>Obtain Ultrasound:</strong> Use a standard 2D
+                                fetal ultrasound image.</li>
+                            <li><span class="step-number">2</span><strong>Upload File:</strong> Drop the image file into
+                                the designated upload area.</li>
+                            <li><span class="step-number">3</span><strong>Generate Mask:</strong> Click "Analyze Upload"
+                                to trigger semantic segmentation.</li>
+                            <li><span class="step-number">4</span><strong>Examine Mask:</strong> View the results panel.
+                                An overlay of the AI-detected fetal head boundary should appear on the scan.</li>
+                        </ol>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Footer -->
+        <footer>
+            <p>&copy; 2026 Medical AI Diagnostic System. Not intended for clinical use without human supervision.</p>
+        </footer>
     </div>
-</div>
-{% endblock %}
 
-{% block scripts %}
-<script>
-    // File input handling
-    const fileInput = document.getElementById('fileInput');
-    const dropZone = document.getElementById('dropZone');
-    const fileNameDisplay = document.getElementById('fileNameDisplay');
-    const fileName = document.getElementById('fileName');
-    
-    fileInput.addEventListener('change', function() {
-        if (this.files && this.files[0]) {
-            fileName.textContent = this.files[0].name;
-            fileNameDisplay.classList.add('visible');
-        }
-    });
-    
-    // Drag and drop
-    ['dragenter', 'dragover'].forEach(eventName => {
-        dropZone.addEventListener(eventName, (e) => {
-            e.preventDefault();
-            dropZone.classList.add('dragover');
-        });
-    });
-    
-    ['dragleave', 'drop'].forEach(eventName => {
-        dropZone.addEventListener(eventName, (e) => {
-            e.preventDefault();
-            dropZone.classList.remove('dragover');
-        });
-    });
-    
-    dropZone.addEventListener('drop', (e) => {
-        const files = e.dataTransfer.files;
-        if (files.length) {
-            fileInput.files = files;
-            fileName.textContent = files[0].name;
-            fileNameDisplay.classList.add('visible');
-        }
-    });
-    
-    // Form submission animation
-    document.getElementById('uploadForm').addEventListener('submit', function() {
-        this.classList.add('analyzing');
-        const btn = this.querySelector('.analyze-btn');
-        btn.innerHTML = '⏳ Analyzing...';
-        btn.disabled = true;
-    });
-</script>
-{% endblock %}
+    <!-- Simple JS for UX -->
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const dropZone = document.getElementById('drop-zone');
+            const fileInput = document.getElementById('file-input');
+            const promptText = document.getElementById('upload-prompt-text');
+            const form = document.getElementById('upload-form');
+            const submitBtn = document.getElementById('submit-btn');
 
+            // Drag and drop styles
+            dropZone.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                dropZone.classList.add('dragover');
+            });
+            ['dragleave', 'dragend', 'drop'].forEach(evt => {
+                dropZone.addEventListener(evt, (e) => {
+                    e.preventDefault();
+                    dropZone.classList.remove('dragover');
+                });
+            });
+
+            // File selection update
+            fileInput.addEventListener('change', (e) => {
+                if (e.target.files.length > 0) {
+                    promptText.textContent = `Selected: ${e.target.files[0].name}`;
+                    promptText.style.color = 'var(--primary-gradient)';
+                }
+            });
+
+            // Loading state on submit
+            form.addEventListener('submit', () => {
+                if (fileInput.files.length > 0) {
+                    submitBtn.classList.add('loading');
+                }
+            });
+        });
+    </script>
+</body>
+
+</html>

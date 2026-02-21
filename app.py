@@ -1,8 +1,12 @@
 # app.py - Multi-Disease Medical AI Diagnostic System
 
 import os
+import json
 import numpy as np
 import cv2
+import h5py
+import tempfile
+import shutil
 from flask import Flask, render_template, request, jsonify, url_for
 from tensorflow.keras.models import load_model
 from tensorflow.keras.preprocessing.image import load_img, img_to_array
@@ -32,13 +36,13 @@ MODELS_CONFIG = {
         'architecture': 'EfficientNetV2S'
     },
     'fetal_ultrasound': {
-        'model_path': 'Fetal_Ultrasound/training/fetal_ultrasound_unet_20260114_122846_best.h5',
+        'model_path': 'Fetal_Ultrasound/training/fetal_ultrasound_attention_unet_20260213_235033_best.h5',
         'labels': ['Fetal Head Contour Segmentation'],
         'img_size': 256,
         'model_type': 'segmentation',
-        'description': 'Performs semantic segmentation to detect and outline fetal head in ultrasound images using U-Net architecture',
+        'description': 'Performs semantic segmentation to detect and outline fetal head in ultrasound images using Attention U-Net architecture',
         'dice_coefficient': 0.285,  # Based on training progress
-        'architecture': 'U-Net'
+        'architecture': 'Attention U-Net'
     }
 }
 
@@ -83,6 +87,185 @@ CUSTOM_OBJECTS = {
     'iou_score': iou_score
 }
 
+# ==================== KERAS VERSION COMPATIBILITY ====================
+
+def _patch_keras3_model_config(config_str):
+    """
+    Patch a Keras 3.x model config JSON so it can be loaded by Keras 2.x.
+
+    Keras 3 introduces several config changes that break Keras 2 loading:
+      1. InputLayer uses 'batch_shape' instead of 'batch_input_shape'
+      2. All layers store 'dtype' as a DTypePolicy dict instead of a plain string
+      3. Layers may include unknown keys: 'dtype_policy', 'dtype_policy_name',
+         'quantization_mode', 'build_config', 'compiled_trainable'
+      4. `inbound_nodes` format changed from a list of `[layer_name, node_id, tensor_id, kwargs]`
+         to a list of `{'args': [...], 'kwargs': {...}}`
+    """
+    try:
+        config = json.loads(config_str)
+    except Exception:
+        return config_str  # Return as-is if not valid JSON
+
+    # Keys in layer configs not understood by Keras 2
+    UNKNOWN_LAYER_KEYS = [
+        'dtype_policy', 'dtype_policy_name', 'quantization_mode',
+        'build_config', 'compiled_trainable', 'activity_regularizer',
+    ]
+
+    def simplify_dtype(dtype_val):
+        """Convert a Keras 3 DTypePolicy dict to a plain Keras 2 dtype string."""
+        if isinstance(dtype_val, dict):
+            # Keras 3 format: {'module': 'keras', 'class_name': 'DTypePolicy',
+            #                  'config': {'name': 'float32'}, ...}
+            if dtype_val.get('class_name') == 'DTypePolicy':
+                return dtype_val.get('config', {}).get('name', 'float32')
+            # Sometimes just {'class_name': 'float32'} or similar
+            return dtype_val.get('config', {}).get('name', 'float32')
+        return dtype_val  # Already a string
+
+    def fix_inbound_nodes(inbound_nodes):
+        """
+        Convert Keras 3 inbound_nodes format to Keras 2 format.
+
+        Keras 3 format (single input):
+          [{"args": [{"class_name": "__keras_tensor__",
+                      "config": {"shape": [...], "dtype": "...",
+                                 "keras_history": [layer_name, node_idx, tensor_idx]}}],
+            "kwargs": {}}]
+
+        Keras 3 format (multiple inputs, e.g. Multiply/Add):
+          [{"args": [[{"class_name": "__keras_tensor__", ...},
+                      {"class_name": "__keras_tensor__", ...}]],
+            "kwargs": {}}]
+
+        Keras 2 format:
+          [[[layer_name, node_idx, tensor_idx, {}]]]
+        """
+        if not isinstance(inbound_nodes, list) or len(inbound_nodes) == 0:
+            return inbound_nodes
+
+        # Already Keras 2 format = first element is a list
+        if isinstance(inbound_nodes[0], list):
+            return inbound_nodes
+
+        def _extract_keras_tensors(obj):
+            """Recursively extract keras_history connections from nested args."""
+            results = []
+            if isinstance(obj, dict) and obj.get('class_name') == '__keras_tensor__':
+                kh = obj.get('config', {}).get('keras_history', [])
+                if len(kh) >= 3:
+                    results.append(kh)
+            elif isinstance(obj, list):
+                for item in obj:
+                    results.extend(_extract_keras_tensors(item))
+            return results
+
+        fixed_nodes = []
+        for node in inbound_nodes:
+            if not (isinstance(node, dict) and 'args' in node):
+                fixed_nodes.append(node)
+                continue
+            args = node.get('args', [])
+            kwargs = node.get('kwargs', {})
+            histories = _extract_keras_tensors(args)
+            node_connections = []
+            for kh in histories:
+                node_connections.append([kh[0], kh[1], kh[2], kwargs])
+            if node_connections:
+                fixed_nodes.append(node_connections)
+            else:
+                fixed_nodes.append(node)
+        return fixed_nodes
+
+
+    def fix_layer_config(layer_cfg):
+        """Fix an individual layer's config dict in-place."""
+        if not isinstance(layer_cfg, dict):
+            return layer_cfg
+        # Simplify dtype
+        if 'dtype' in layer_cfg:
+            layer_cfg['dtype'] = simplify_dtype(layer_cfg['dtype'])
+        # Remove keys Keras 2 doesn't understand
+        for key in UNKNOWN_LAYER_KEYS:
+            layer_cfg.pop(key, None)
+        return layer_cfg
+
+    def fix_config(obj):
+        if isinstance(obj, dict):
+            class_name = obj.get('class_name', '')
+            if 'config' in obj and isinstance(obj['config'], dict):
+                layer_cfg = obj['config']
+                # Fix InputLayer: batch_shape -> batch_input_shape
+                if class_name == 'InputLayer':
+                    if 'batch_shape' in layer_cfg and 'batch_input_shape' not in layer_cfg:
+                        layer_cfg['batch_input_shape'] = layer_cfg.pop('batch_shape')
+                    # InputLayer also doesn't need 'sparse' or 'ragged' in Keras 2
+                    # (they're harmless, keep them)
+                # Fix dtype for all layers
+                fix_layer_config(layer_cfg)
+
+            # Fix inbound_nodes at the layer level
+            if 'inbound_nodes' in obj:
+                obj['inbound_nodes'] = fix_inbound_nodes(obj['inbound_nodes'])
+
+            # Recursively fix all values
+            return {k: fix_config(v) for k, v in obj.items()}
+        elif isinstance(obj, list):
+            return [fix_config(item) for item in obj]
+        return obj
+
+    patched = fix_config(config)
+    return json.dumps(patched)
+
+
+def load_model_compat(model_path, custom_objects=None, compile=False):
+    """
+    Load a Keras .h5 model with robust compatibility handling for Keras 3 -> Keras 2.
+    If the first load attempt fails due to known Keras version mismatches,
+    the model config JSON inside the H5 file is patched in a temp copy and retried.
+    """
+    # First try loading normally (works for same-version models)
+    try:
+        return load_model(model_path,
+                          custom_objects=custom_objects,
+                          compile=compile)
+    except (TypeError, ValueError) as e:
+        err_str = str(e)
+        known_issues = [
+            'batch_shape',
+            'Unrecognized keyword arguments',
+            'DTypePolicy',
+            'Unknown dtype policy',
+            'dtype_policy',
+        ]
+        if not any(kw in err_str for kw in known_issues):
+            raise  # Different error — re-raise as-is
+        print(f"   ⚠️  Keras version mismatch detected. Applying Keras 3->2 compatibility patch...")
+        print(f"   📋 Error was: {err_str[:120]}")
+
+    # Patch: make a temp copy of the H5, fix the model_config attr, then reload
+    tmp_dir = tempfile.mkdtemp(prefix='keras_compat_')
+    tmp_path = os.path.join(tmp_dir, 'model_compat.h5')
+    try:
+        shutil.copy2(model_path, tmp_path)
+        with h5py.File(tmp_path, 'r+') as f:
+            if 'model_config' in f.attrs:
+                original_cfg = f.attrs['model_config']
+                if isinstance(original_cfg, bytes):
+                    original_cfg = original_cfg.decode('utf-8')
+                patched_cfg = _patch_keras3_model_config(original_cfg)
+                f.attrs['model_config'] = patched_cfg
+                print(f"   🔧 Patched model_config successfully")
+            else:
+                print(f"   ⚠️  No model_config attribute found in H5 file")
+
+        return load_model(tmp_path,
+                          custom_objects=custom_objects,
+                          compile=compile)
+    finally:
+        shutil.rmtree(tmp_dir, ignore_errors=True)
+
+
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
@@ -102,10 +285,11 @@ def load_all_models():
             model_path = config['model_path']
             if os.path.exists(model_path):
                 # Load model with custom objects if it's a segmentation model
+                # Use compatibility loader to handle Keras 3 -> Keras 2 differences
                 if config.get('model_type') == 'segmentation':
-                    model = load_model(model_path, custom_objects=CUSTOM_OBJECTS, compile=False)
+                    model = load_model_compat(model_path, custom_objects=CUSTOM_OBJECTS, compile=False)
                 else:
-                    model = load_model(model_path, compile=False)
+                    model = load_model_compat(model_path, compile=False)
                 
                 models[disease_key] = {
                     'model': model,

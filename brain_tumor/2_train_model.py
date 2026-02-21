@@ -51,13 +51,13 @@ print("="*70)
 # ============================================================================
 class Config:
     # Data paths
-    TRAIN_DIR = 'cleaned_data/Training'
-    TEST_DIR = 'cleaned_data/Testing'
+    TRAIN_DIR = 'brain_tumor/cleaned_data/Training'
+    TEST_DIR = 'brain_tumor/cleaned_data/Testing'
     
     # Model paths
-    MODEL_PATH = 'models/brain_tumor_model.h5'
-    MODEL_BEST = 'models/brain_tumor_best.h5'
-    MODEL_FINAL = 'models/brain_tumor_final.h5'
+    MODEL_PATH = 'brain_tumor/models/brain_tumor_model.h5'
+    MODEL_BEST = 'brain_tumor/models/brain_tumor_best.h5'
+    MODEL_FINAL = 'brain_tumor/models/brain_tumor_final.h5'
     
     # Training parameters
     IMG_SIZE = (224, 224)
@@ -95,13 +95,14 @@ def create_data_generators():
     # Training augmentation - conservative for medical images
     train_datagen = ImageDataGenerator(
         rescale=1./255,
-        rotation_range=15,
-        width_shift_range=0.1,
-        height_shift_range=0.1,
-        shear_range=0.1,
-        zoom_range=0.1,
+        rotation_range=20,
+        width_shift_range=0.2,
+        height_shift_range=0.2,
+        shear_range=0.2,
+        zoom_range=0.2,
         horizontal_flip=True,
-        brightness_range=[0.85, 1.15],
+        vertical_flip=True,
+        brightness_range=[0.8, 1.2],
         fill_mode='constant',
         cval=0,
         validation_split=config.VALIDATION_SPLIT
@@ -256,7 +257,7 @@ def train_stage1(model, train_gen, val_gen, class_weights):
             verbose=1
         ),
         ModelCheckpoint(
-            'models/stage1_best.h5',
+            'brain_tumor/models/stage1_best.h5',
             monitor='val_accuracy',
             save_best_only=True,
             verbose=1
@@ -495,7 +496,7 @@ def evaluate_model(model, test_gen, use_tta=True):
         'confusion_matrix': cm.tolist()
     }
     
-    with open('results/test_results_final.json', 'w') as f:
+    with open('brain_tumor/results/test_results_final.json', 'w') as f:
         json.dump(results, f, indent=4)
     
     print("\n✅ Results saved")
@@ -584,7 +585,7 @@ def plot_results(histories, cm):
     plt.grid(True, alpha=0.3, axis='y')
     
     plt.tight_layout()
-    plt.savefig('results/training_results_final.png', dpi=300, bbox_inches='tight')
+    plt.savefig('brain_tumor/results/training_results_final.png', dpi=300, bbox_inches='tight')
     print("✅ Visualization saved")
     plt.close()
 
@@ -605,7 +606,7 @@ def save_model(model):
         'input_size': list(config.IMG_SIZE)
     }
     
-    with open('models/class_labels.json', 'w') as f:
+    with open('brain_tumor/models/class_labels.json', 'w') as f:
         json.dump(class_info, f, indent=4)
     print("✅ Class labels saved")
 
@@ -617,11 +618,11 @@ def main():
     
     if not os.path.exists(config.TRAIN_DIR):
         print("❌ ERROR: Cleaned dataset not found!")
-        print("➡️  Run: python 1_clean_dataset.py first")
+        print("➡️  Run: python brain_tumor/1_clean_dataset.py first")
         return
     
-    os.makedirs('results', exist_ok=True)
-    os.makedirs('models', exist_ok=True)
+    os.makedirs('brain_tumor/results', exist_ok=True)
+    os.makedirs('brain_tumor/models', exist_ok=True)
     
     # Load data
     train_gen, val_gen, test_gen, class_weights = create_data_generators()

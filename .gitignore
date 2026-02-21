@@ -20,6 +20,12 @@ build/
 models/best_model_*.pth
 models/*/best_model_*.pth
 
+# EXCEPTION: Allow specific models for deployment (if using Git LFS)
+# Uncomment these lines if you set up Git LFS:
+# !Lung/models/lung_model_final_20260113_125327.h5
+# !brain_tumor/models/brain_tumor_final.h5
+# !Fetal_Ultrasound/training/fetal_ultrasound_unet_20260114_122846_best.h5
+
 # Training outputs
 logs/
 */logs/

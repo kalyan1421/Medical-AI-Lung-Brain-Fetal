@@ -1,0 +1,35 @@
+{
+  "dataset_dir": "/Users/kalyan/Client project/ML-Medical-Diagnosis/Fetal_Ultrasound/dataset",
+  "output_dir": "/Users/kalyan/Client project/ML-Medical-Diagnosis/Fetal_Ultrasound/training",
+  "model_type": "attention_unet",
+  "img_height": 256,
+  "img_width": 256,
+  "input_channels": 1,
+  "filters_base": 32,
+  "batch_size": 8,
+  "epochs": 100,
+  "learning_rate": 0.0001,
+  "augmentation": true,
+  "rotation_range": 15.0,
+  "width_shift": 0.1,
+  "height_shift": 0.1,
+  "zoom_range": 0.15,
+  "horizontal_flip": true,
+  "early_stopping_patience": 12,
+  "reduce_lr_patience": 6,
+  "reduce_lr_factor": 0.5,
+  "seed": 42,
+  "img_size": [
+    256,
+    256
+  ],
+  "run_name": "fetal_ultrasound_attention_unet_20260214_000106",
+  "best_model_path": "/Users/kalyan/Client project/ML-Medical-Diagnosis/Fetal_Ultrasound/training/fetal_ultrasound_attention_unet_20260214_000106_best.h5",
+  "final_model_path": "/Users/kalyan/Client project/ML-Medical-Diagnosis/Fetal_Ultrasound/training/fetal_ultrasound_attention_unet_20260214_000106_final.h5",
+  "preprocessing": {
+    "color_mode": "grayscale",
+    "normalize": "image / 255.0",
+    "mask_binarization_threshold": 0.5,
+    "training_dataset_assumption": "dataset images are already CLAHE+denoise preprocessed"
+  }
+}
